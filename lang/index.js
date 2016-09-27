@@ -8,9 +8,13 @@ var argv = require('yargs')
   .argv
 
 if (argv._.length) {
-  parse(argv._[0], function(err, data) {
+  var filename = argv._[0];
+  var scriptId = filename.replace(/\.js$/, '')
+    .replace(/^.+\//, '');
+  parse(filename, function(err, data) {
     if (!err) {
-      console.log(JSON.stringify(data, null, 2));
+      console.log(scriptId + '\t' + JSON.stringify(data));
+      console.log("\n");
     } else {
       console.error(err);
     }
