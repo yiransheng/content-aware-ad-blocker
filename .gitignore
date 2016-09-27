@@ -1,0 +1,27 @@
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/
+
+.idea/
+*.iml
+
+bin/
+
+
+# front end
+node
+node_modules
+nb-configuration.xml
+coverage
+npm-debug.log
+.DS_Store
+dist
+*.swp
+.vscode
