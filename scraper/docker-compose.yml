@@ -1,0 +1,16 @@
+version: '2'
+services:
+  splash:
+    image: scrapinghub/splash
+    ports:
+    - "5023:5023"
+    - "8050:8050"
+    - "8051:8051"
+  scraper:
+    image: scraper
+    depends_on:
+    - splash
+    links:
+    - splash
+    volumes:
+     - ./scripts:/var/scripts
