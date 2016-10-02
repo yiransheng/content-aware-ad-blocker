@@ -1,0 +1,4 @@
+Initial Changes for Exploratory Data Analysis use the slimit package.
+This package provides a minifier for JavaScript code. It also has a JavaScript
+Parser and Lexer.
+
