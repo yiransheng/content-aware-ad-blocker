@@ -14,8 +14,12 @@ for name in ["easyprivacy", "easylist", "fanboy-social", "fanboy-annoyance"]:
     rulesets[name] = load_rules(name)
     counts["flag-%s" % name] = 0
 
-with open("/var/scripts/table.json", "r") as f:
-    table = json.load(f)
+with open("/var/scripts/table.jsonl", "r") as f:
+    table = [
+        json.loads(line)
+        for line in f.readlines()
+    ]
+print "Read %d lines from table" % len(table)
 
 flag_count, noflag_count = 0, 0
 for item in table:
@@ -35,6 +39,9 @@ for item in table:
 
     item["flag-any"] = 0 if first else 1
     counts["total"] += 1
+
+    if counts["total"] % 100 == 0:
+        print "Processed %d entries" % counts["total"]
 
 for name, count in counts.iteritems():
     print "%s: %d" % (name, count)
