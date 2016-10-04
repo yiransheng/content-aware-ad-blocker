@@ -1,2 +1,3 @@
+pycparser==2.13
 scrapy==1.1.2
 scrapy-splash==0.7

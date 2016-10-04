@@ -1,0 +1,21 @@
+# Jupyter notebook support
+
+jupyter==1.0.0
+
+# Run R in an IPython notebook
+
+rpy2==2.8.3
+
+# Analysis in Python
+
+numpy==1.11.2rc1
+pandas==0.19.0
+matplotlib==1.5.3
+scipy==0.18.1
+scikit-learn==0.18
+six==1.7.0
+
+# Misc dependencies
+
+#Jinja2==2.7.3
+#pympler==0.4.2
