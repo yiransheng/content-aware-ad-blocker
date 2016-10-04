@@ -25,9 +25,10 @@ f_table = open("/var/scripts/table.jsonl", "aw")
 # http://www.berkeley.edu/
 # http://www.harvard.edu/
 # https://www.coursera.org/
+# http://www.ca.gov/
 class Spider(scrapy.Spider):
     name = 'spider'
-    start_urls = ['https://www.coursera.org/']
+    start_urls = ['http://www.ca.gov/']
 
     custom_settings = {
         "SPLASH_URL": "http://splash:8050",
