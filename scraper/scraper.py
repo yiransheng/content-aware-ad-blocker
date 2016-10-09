@@ -11,24 +11,35 @@ seen_domains = set()
 f_table = open("/var/scripts/table.jsonl", "aw")
 
 # URLs crawled:
-# wikipedia
-# news.bbc.co.uk
-# microsoft.com
-# amazon.com
+# https://www.wikipedia.org/
+# https://www.khanacademy.org/
+# https://www.coursera.org/
+# http://www.bbc.com/news
+# https://www.microsoft.com/en-us/
+# https://www.amazon.com/
 # http://www.cnn.com/
 # https://www.yahoo.com/
 # https://www.reddit.com/
 # https://www.buzzfeed.com/
 # http://www.nytimes.com/
 # http://www.foxnews.com/
+# http://www.msn.com/
+# https://news.google.com/
+# http://www.cbs.com/
+# https://www.youtube.com/
+# https://twitter.com/
+# https://www.instagram.com/
 # https://www.whitehouse.gov/
+# http://www.ca.gov/
 # http://www.berkeley.edu/
 # http://www.harvard.edu/
-# https://www.coursera.org/
-# http://www.ca.gov/
+# http://web.mit.edu/
+# http://www.lemonde.fr/
+# https://www.welt.de/
+# http://www.haaretz.co.il/
 class Spider(scrapy.Spider):
     name = 'spider'
-    start_urls = ['http://www.ca.gov/']
+    start_urls = ['https://www.instagram.com/']
 
     custom_settings = {
         "SPLASH_URL": "http://splash:8050",
@@ -109,7 +120,7 @@ class Spider(scrapy.Spider):
         # Pick up to 10 random links to follow that lead to new domains
         if len(new_urls) > 0:
             for url in random.sample(new_urls, min(len(new_urls), 10)):
-                yield SplashRequest(url, self.parse, args={'wait': 0.5})
+                yield SplashRequest(url, self.parse, args={'wait': 5.0})
 
     def parse_script(self, response):
         yield self.store_script(response.url, response.body, False)
