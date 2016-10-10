@@ -15,7 +15,7 @@ var deferParse = function(items) {
 }
 
 var doParse = function(item, remainingItems) {
-    fs.exists("/var/scripts-ast/" + item + ".js.ast", function(exists) {
+    fs.exists("/usr/src/app/scripts-ast/" + item + ".js.ast", function(exists) {
         if (exists) {
             console.log(item + " (exists)");
             succeeded += 1;
@@ -23,9 +23,9 @@ var doParse = function(item, remainingItems) {
             return;
         }
         console.log(item);
-        parse("/var/scripts/" + item + ".js", function(err, data) {
+        parse("/usr/src/app/scripts/" + item + ".js", function(err, data) {
             if (!err) {
-                fs.writeFile("/var/scripts-ast/" + item + ".js.ast",
+                fs.writeFile("/usr/src/app/scripts-ast/" + item + ".js.ast",
                     JSON.stringify(data),
                     function(err) {
                         if(err) {
@@ -45,9 +45,9 @@ var doParse = function(item, remainingItems) {
     });
 }
 
-fs.readFile("/var/scripts/table_balanced.json", function(err, data) {
+fs.readFile("/usr/src/app/scripts/table_balanced.json", function(err, data) {
     var table = JSON.parse(data);
-    var items = table.map(item => item.sha);
+    var items = table.map(function(item) { return item.sha; });
     items.sort();
     deferParse(items);
 });

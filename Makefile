@@ -1,3 +1,5 @@
+SHELL=/bin/bash
+
 images:
 	pushd scraper && docker build -t scraper . && popd
 	pushd labeler && docker build -t labeler . && popd
@@ -13,8 +15,8 @@ label: images
 
 parse: images
 	docker run --rm -it \
-		-v `pwd`/scripts:/var/scripts \
-		-v `pwd`/scripts-ast:/var/scripts-ast \
+		-v `pwd`/scripts:/usr/src/app/scripts \
+		-v `pwd`/scripts-ast:/usr/src/app/scripts-ast \
 		lang
 
 notebook: images
