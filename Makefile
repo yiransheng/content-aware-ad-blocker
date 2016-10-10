@@ -20,7 +20,7 @@ parse: images
 		lang
 
 notebook: images
-	mkdir -o ./models/data
+	mkdir -p ./models/data
 	docker run --rm -it \
 		-v `pwd`:/usr/src/app \
 		-p 9123:9123 \
