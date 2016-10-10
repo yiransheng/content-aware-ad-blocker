@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY Lasagne-master.zip /usr/src/app/
 RUN pip install --user --upgrade --no-deps Lasagne-master.zip
 
+COPY rsetup.r /usr/src/app/
+RUN cat /usr/src/app/rsetup.r | R --vanilla
+
 EXPOSE 9123
 
 CMD ["/bin/sh", "-c", "jupyter notebook --debug --notebook-dir=/usr/src/app/models --no-browser --port 9123 --ip=0.0.0.0"]
