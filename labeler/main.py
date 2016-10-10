@@ -1,4 +1,6 @@
+from itertools import chain, izip
 import json
+import random
 
 from adblockparser import AdblockRules
 
@@ -62,3 +64,43 @@ for name, count in counts.iteritems():
 
 with open("/var/scripts/table_flag.json", "w") as f:
     json.dump(table, f)
+
+# Filter out inline scripts for now
+extern_table = [i for i in table if i["inline"] == False]
+
+# Collapse all duplicates
+scripts_table = {}
+for item in extern_table:
+    if item["sha"] not in scripts_table:
+        scripts_table[item["sha"]] = item
+        scripts_table[item["sha"]]["count"] = 0
+
+    for entry in item:
+        if entry.startswith("flag-"):
+            if item[entry] == 1:
+                scripts_table[item["sha"]][entry] = 1
+
+    scripts_table[item["sha"]]["count"] += 1
+
+dedup_table = scripts_table.values()
+
+positive_examples = [i for i, e in enumerate(dedup_table) if e["flag-any"] == 1]
+negative_examples = [i for i, e in enumerate(dedup_table) if e["flag-any"] == 0]
+random.seed(1492)
+random.shuffle(positive_examples)
+random.shuffle(negative_examples)
+# Randomly select the same number of negative examples as we have positive examples
+negative_examples = negative_examples[:len(positive_examples)]
+print "%d scripts labeled." % len(table)
+print "%d external scripts" % len(extern_table)
+print "%d deduplicated scripts." % len(dedup_table)
+print "%d positive + %d negative examples = %d total." % (
+    len(positive_examples), len(negative_examples),
+    len(positive_examples)+len(negative_examples))
+
+balanced_table = [
+    dedup_table[i]
+    for i in chain.from_iterable(izip(positive_examples, negative_examples))]
+
+with open("/var/scripts/table_balanced.json", "w") as f:
+    json.dump(balanced_table, f)
