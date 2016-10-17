@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY Lasagne-master.zip /usr/src/app/
 RUN pip install --user --upgrade --no-deps Lasagne-master.zip
 
+RUN pip install --upgrade --no-cache-dir https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-0.11.0rc0-cp27-none-linux_x86_64.whl
+
 COPY rsetup.r /usr/src/app/
 RUN cat /usr/src/app/rsetup.r | R --vanilla
 
