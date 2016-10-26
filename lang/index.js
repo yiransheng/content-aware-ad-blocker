@@ -14,7 +14,6 @@ if (argv._.length) {
   parse(filename, function(err, data) {
     if (!err) {
       console.log(scriptId + '\t' + JSON.stringify(data));
-      console.log("\n");
     } else {
       console.error(err);
     }
