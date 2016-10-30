@@ -55,3 +55,10 @@ def parse_ast(tbl):
                 yield f.read()
         except IOError:
             yield "[]"
+
+def tokenize_url(url):
+    return list(url)
+
+def parse_url(tbl):
+    for item in tbl:
+        yield item["url"]
