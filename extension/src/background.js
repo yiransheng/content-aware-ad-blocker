@@ -1,9 +1,10 @@
 (function() {
     var tabScripts = {};
     var tabUrls = {};
+    var currentActiveTab = null;
 
     var filters = {};
-    const FILTER_NAMES = ["easylist", "easyprivacy", "fanboy-annoyance", "fanboy-social"];
+    const FILTER_NAMES = ["easylist", "privacy", "annoyance", "social"];
 
     function updateBadge(tabId) {
         var blocked = tabScripts[tabId] || {};
@@ -30,6 +31,7 @@
     }
 
     function shouldBlockUrlUsingFilters(url, prevInfo) {
+        prevInfo.urlFiltered = 0;
         for (var i = 0; i < FILTER_NAMES.length; i++) {
             if (ABPFilterParser.matches(filters[FILTER_NAMES[i]], url, {
                 domain: "",
@@ -38,10 +40,9 @@
                 console.log("!! Url", url, "filtered by", FILTER_NAMES[i]);
                 prevInfo.urlFiltered = 1;
                 prevInfo.urlFilteredBy = FILTER_NAMES[i];
-                return prevInfo;
+                break;
             }
         }
-        prevInfo.urlFiltered = 0;
         return prevInfo;
     }
 
@@ -150,6 +151,7 @@
 
     chrome.tabs.onActivated.addListener(function(details) {
         updateBadge(details.tabId);
+        currentActiveTab = details.tabId;
     });
 
     chrome.tabs.onUpdated.addListener(function(tabId, details) {
@@ -162,4 +164,10 @@
 
     console.log("Background script loaded!");
     FILTER_NAMES.map(loadFilterList);
+
+    chrome.runtime.onMessage.addListener(function (msg, sender, response) {
+        if ((msg.from === 'popup') && (msg.action === 'getScriptData')) {
+            response(tabScripts[currentActiveTab] || {});
+        }
+    });
 })();
