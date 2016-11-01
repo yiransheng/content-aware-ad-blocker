@@ -13,7 +13,7 @@
   },
 
   "background": {
-    "scripts": ["src/final_model.js", "src/url_model.js", "src/background.js"],
+    "scripts": ["src/parse_filters.js", "src/final_model.js", "src/url_model.js", "src/background.js"],
     "persistent": true
   },
   "permissions": [

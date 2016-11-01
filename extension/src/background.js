@@ -2,6 +2,9 @@
     var tabScripts = {};
     var tabUrls = {};
 
+    var filters = {};
+    const FILTER_NAMES = ["easylist", "easyprivacy", "fanboy-annoyance", "fanboy-social"];
+
     function updateBadge(tabId) {
         var blocked = tabScripts[tabId] || {};
         var numBlocked = Object.keys(blocked).filter(
@@ -13,6 +16,33 @@
         } else {
             chrome.browserAction.setBadgeText({text: ""});
         }
+    }
+
+    function loadFilterList(name) {
+        var request = new XMLHttpRequest();
+        request.open('GET', chrome.extension.getURL('/filters/' + name + ".txt"), false);  // `false` makes the request synchronous
+        request.send(null);
+
+        var parsedFilterData = {};
+        ABPFilterParser.parse(request.responseText, parsedFilterData);
+        filters[name] = parsedFilterData;
+        console.log("Loaded filter", name);
+    }
+
+    function shouldBlockUrlUsingFilters(url, prevInfo) {
+        for (var i = 0; i < FILTER_NAMES.length; i++) {
+            if (ABPFilterParser.matches(filters[FILTER_NAMES[i]], url, {
+                domain: "",
+                elementTypeMaskMap: ABPFilterParser.elementTypes.SCRIPT,
+            })) {
+                console.log("!! Url", url, "filtered by", FILTER_NAMES[i]);
+                prevInfo.urlFiltered = 1;
+                prevInfo.urlFilteredBy = FILTER_NAMES[i];
+                return prevInfo;
+            }
+        }
+        prevInfo.urlFiltered = 0;
+        return prevInfo;
     }
 
     function tokenizeContents(contents) {
@@ -86,6 +116,8 @@
 
         var result = {};
 
+        result = shouldBlockUrlUsingFilters(details.url, result);
+
         result = shouldBlockUrl(details.url, result);
         if (result.urlBlocked === 1) {
             console.log("## URL BLOCKED", details.url, result.urlScore);
@@ -129,4 +161,5 @@
     })
 
     console.log("Background script loaded!");
+    FILTER_NAMES.map(loadFilterList);
 })();
