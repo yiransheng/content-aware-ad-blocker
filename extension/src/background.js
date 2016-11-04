@@ -31,6 +31,7 @@
     }
 
     function shouldBlockUrlUsingFilters(url, prevInfo) {
+        var startTime = performance.now();
         prevInfo.urlFiltered = 0;
         for (var i = 0; i < FILTER_NAMES.length; i++) {
             if (ABPFilterParser.matches(filters[FILTER_NAMES[i]], url, {
@@ -43,6 +44,7 @@
                 break;
             }
         }
+        prevInfo.urlFilterTime = performance.now() - startTime;
         return prevInfo;
     }
 
@@ -78,6 +80,7 @@
     }
 
     function shouldBlockUrl(url, prevInfo) {
+        var startTime = performance.now();
         var urlModel = getUrlModel();
 
         var urlTokens = url.toLowerCase().split("");
@@ -88,10 +91,12 @@
 
         prevInfo.urlBlocked = (svmScore > 0) ? 1 : 0;
         prevInfo.urlScore = svmScore;
+        prevInfo.urlScoreTime = performance.now() - startTime;
         return prevInfo;
     }
 
     function shouldBlockContents(url, contents, prevInfo) {
+        var startTime = performance.now();
         var combinedModel = getCombinedModel();
 
         var urlTokens = url.toLowerCase().split("");
@@ -105,6 +110,7 @@
 
         prevInfo.contentBlocked = (svmScore > 0) ? 1 : 0;
         prevInfo.contentScore = svmScore;
+        prevInfo.contentScoreTime = performance.now() - startTime;
         return prevInfo;
     }
 
