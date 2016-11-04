@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Content-aware Ad Blocker</title>
+    <link href="https://fonts.googleapis.com/css?family=Catamaran" rel="stylesheet">
+    <script src="popup.js"></script>
+    <style>
+body {
+    color: #0e025f;
+    font-family: 'Catamaran', sans-serif;
+    width: 700px;
+}
+h1, h2 {
+    text-shadow: 1px 1px 2px rgba(2, 139, 236, 0.37);
+}
+h1, p, h2 {
+    text-align: center;
+}
+a, a :visited {
+    color: #1d06bf;
+}
+.table {
+    font-size: 11px;
+}
+.table td,
+.table th {
+    padding: 4px;
+    margin: 0;
+}
+.table td.bool {
+    font-size: 10px;
+    text-align: center;
+    width: 60px;
+}
+.table td.time {
+    text-align: right;
+    font-style: italic;
+}
+.table td.fail {
+    background-color: #faa;
+    color: #400;
+}
+.table td.maybe {
+    background-color: #fca;
+    color: #420;
+}
+.table td.pass {
+    background-color: #afa;
+    color: #040;
+}
+.table tr:nth-child(even) {
+    background-color: #eee;
+}
+.table tr:nth-child(even) td.fail {
+    background-color: #e99;
+}
+.table tr:nth-child(even) td.maybe {
+    background-color: #eb9;
+}
+.table tr:nth-child(even) td.pass {
+    background-color: #9e9;
+}
+    </style>
+  </head>
+  <body style="width: 700px">
+    <h1>Content-aware Ad Blocker</h1>
+    <p>This is an ad blocker which uses machine learning to identify
+        ad-serving scripts in your browser.</p>
+    <p>This is a capstone project for the UC Berkeley Master of Information
+        and Data Science program.</p>
+    <h2 style="margin-bottom: 0; margin-top: 30px;">Scripts loaded on this page</h2>
+    <table class="table" cellpadding="0" cellspacing="0" width="100%">
+        <tbody id="urlTable">
+            <tr data-id="header">
+                <th>URL</th>
+                <th>Filter</th>
+                <th>URL</th>
+                <th>Content</th>
+                <th>Time</th>
+            </tr>
+        </tbody>
+    </table>
+  </body>
+</html>

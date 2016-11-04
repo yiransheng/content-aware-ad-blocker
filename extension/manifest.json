@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+
+  "name": "Content-aware Ad Blocker",
+  "description": "MIDS Capstone Project",
+  "version": "0.1",
+
+  "icons": { "48": "icons/exticon.png", "96": "icons/exticon96.png" },
+
+  "browser_action": {
+    "default_icon": "icons/exticon.png",
+    "default_popup": "src/popup.html"
+  },
+
+  "background": {
+    "scripts": ["src/parse_filters.js", "src/final_model.js", "src/url_model.js", "src/background.js"],
+    "persistent": true
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "*://*/*"
+  ],
+  "web_accessible_resources": [
+  ]
+}
