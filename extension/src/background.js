@@ -102,8 +102,15 @@
         var urlTokens = url.toLowerCase().split("");
         var urlScore = calcSVMScore(urlTokens, combinedModel.url, 6);
 
-        var scriptTokens = tokenizeContents(contents);
+        var scriptTokens = tokenizeContents(contents.slice(0, 1024));
         var scriptScore = calcSVMScore(scriptTokens, combinedModel.script, 2);
+
+        var sizeTokens = [];
+        for (var size = 1; size <= contents.length; size *= 2) {
+            sizeTokens.push(size);
+        }
+        var sizeScore = calcSVMScore(sizeTokens, combinedModel.size, 1);
+        console.log("Size", sizeTokens, sizeScore);
 
         // SVM score
         var svmScore = combinedModel.b + urlScore + scriptScore;
@@ -170,6 +177,7 @@
 
     console.log("Background script loaded!");
     FILTER_NAMES.map(loadFilterList);
+    console.log(getCombinedModel());
 
     chrome.runtime.onMessage.addListener(function (msg, sender, response) {
         if ((msg.from === 'popup') && (msg.action === 'getScriptData')) {

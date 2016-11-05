@@ -73,3 +73,11 @@ def ngramizer(tokenizer, max_n):
         ]
     private.tokenizer = tokenizer
     return private
+
+def truncated_parse_js(max_size):
+    def private(tbl):
+        for item in tbl:
+            with open("%s/scripts/%s.js" % (REPO_ROOT, item["sha"])) as f:
+                yield f.read().decode(errors='replace')[:max_size]    
+    private.max_size = max_size
+    return private
