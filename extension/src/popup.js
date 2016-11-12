@@ -115,7 +115,24 @@ function getData() {
         from: "popup",
         action: "getScriptData"
     }, function(data) {
-        renderTable(data);
+        renderTable(data.tabData);
+
+        var blockedScripts = document.getElementById('blockedScripts');
+        blockedScripts.innerHTML = "" + data.globalData.totalScriptsBlocked;
+
+        // Create a CSV
+        var csvRows = [
+            ["URL,Total blocked,Ours blocked,Filter blocked"]
+        ];
+        Object.keys(data.globalData.urlSummaries).forEach(key => {
+            var row = data.globalData.urlSummaries[key];
+            csvRows.push([key, row.totalBlocked, row.oursBlocked, row.filterBlocked].join(","));
+        });
+        var file = new Blob([csvRows.join("\n")], {type: "application/csv"});
+        var url = URL.createObjectURL(file);
+
+        var downloadLink = document.getElementById("downloadLink");
+        downloadLink.setAttribute("href", url);
     });
 }
 

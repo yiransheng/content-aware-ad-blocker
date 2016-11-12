@@ -1,22 +1,91 @@
 (function() {
     var tabScripts = {};
     var tabUrls = {};
+    var urlSummaries = {};
     var currentActiveTab = null;
 
     var filters = {};
     const FILTER_NAMES = ["easylist", "privacy", "annoyance", "social"];
+
+    function debounce(func, wait, immediate) {
+        var timeout;
+        return function() {
+            var context = this, args = arguments;
+            var later = function() {
+                timeout = null;
+                if (!immediate) func.apply(context, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(context, args);
+        };
+    };
+
+    function mergeSummaries(otherSummaries) {
+        Object.keys(otherSummaries).forEach(key => {
+            if (!urlSummaries[key]) {
+                urlSummaries[key] = otherSummaries[key];
+            }
+        });
+    }
+
+    chrome.storage.sync.get(["urlSummaries"], (items) => {
+        console.log("Loaded data:", items);
+        mergeSummaries(items.urlSummaries || {});
+    });
+
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        console.log("Updated data:", changes);
+        if (changes.urlSummaries) {
+            mergeSummaries(changes.urlSummaries.newValue);
+        }
+    });
+
+    var updateSummaries = debounce((tabId) => {
+        chrome.tabs.get(tabId, (tab) => {
+            if (tab.url && tabUrls[tabId] !== tab.url) {
+                tabUrls[tabId] = tab.url;
+            }
+
+            var blocked = tabScripts[tabId] || {};
+            var numBlocked = Object.keys(blocked).filter(
+                (item) => blocked[item].contentBlocked == 1 || blocked[item].urlBlocked == 1
+            ).length;
+
+            var numOursBlocked = Object.keys(blocked).filter(
+                (item) => (blocked[item].contentBlocked == 1 || blocked[item].urlBlocked == 1) && blocked[item].urlFiltered !== 1
+            ).length;
+
+            var numFilterBlocked = Object.keys(blocked).filter(
+                (item) => (blocked[item].contentBlocked !== 1 && blocked[item].urlBlocked !== 1) && blocked[item].urlFiltered == 1
+            ).length;
+
+            urlSummaries[tabUrls[tabId]] = {
+                totalBlocked: numBlocked,
+                oursBlocked: numOursBlocked,
+                filterBlocked: numFilterBlocked,
+            }
+            chrome.storage.sync.set({'urlSummaries': urlSummaries});
+
+            console.log("Updated URL summaries for", tabUrls[tabId], urlSummaries[tabUrls[tabId]]);
+        });
+    }, 1000, false);
 
     function updateBadge(tabId) {
         var blocked = tabScripts[tabId] || {};
         var numBlocked = Object.keys(blocked).filter(
             (item) => blocked[item].contentBlocked == 1 || blocked[item].urlBlocked == 1
         ).length;
+
         chrome.browserAction.setBadgeBackgroundColor({color: "#ba3500"});
         if (numBlocked > 0) {
             chrome.browserAction.setBadgeText({text: "" + numBlocked});
         } else {
             chrome.browserAction.setBadgeText({text: ""});
         }
+
+        updateSummaries(tabId);
     }
 
     function loadFilterList(name) {
@@ -177,11 +246,21 @@
 
     console.log("Background script loaded!");
     FILTER_NAMES.map(loadFilterList);
-    console.log(getCombinedModel());
 
     chrome.runtime.onMessage.addListener(function (msg, sender, response) {
         if ((msg.from === 'popup') && (msg.action === 'getScriptData')) {
-            response(tabScripts[currentActiveTab] || {});
+            var totalScriptsBlocked = 0;
+            Object.keys(urlSummaries).forEach(key => {
+                totalScriptsBlocked += urlSummaries[key].totalBlocked;
+            });
+
+            response({
+                tabData: tabScripts[currentActiveTab] || {},
+                globalData: {
+                    totalScriptsBlocked: totalScriptsBlocked,
+                    urlSummaries: urlSummaries
+                }
+            });
         }
     });
 })();
