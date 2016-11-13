@@ -3,7 +3,6 @@
   <head>
     <title>Content-aware Ad Blocker</title>
     <link href="https://fonts.googleapis.com/css?family=Catamaran" rel="stylesheet">
-    <script src="popup.js"></script>
     <style>
 body {
     color: #0e025f;
@@ -36,6 +35,7 @@ a, a :visited {
 .table td.time {
     text-align: right;
     font-style: italic;
+    width: 40px;
 }
 .table td.fail {
     background-color: #faa;
@@ -65,25 +65,9 @@ a, a :visited {
   </head>
   <body style="width: 700px">
     <h1>Content-aware Ad Blocker</h1>
-    <p>This is an ad blocker which uses machine learning to identify
-        ad-serving scripts in your browser.</p>
-    <p>This is a capstone project for the UC Berkeley Master of Information
-        and Data Science program.</p>
-    <p class="blocked">
-        Total scripts blocked: <span id="blockedScripts"></span>.
-        Download data <a id="downloadLink" download="adBlockerData.csv">here</a>.
-    </p>
-    <h2 style="margin-bottom: 0; margin-top: 30px;">Scripts loaded on this page</h2>
-    <table class="table" cellpadding="0" cellspacing="0" width="100%">
-        <tbody id="urlTable">
-            <tr data-id="header">
-                <th>URL</th>
-                <th>Filter</th>
-                <th>URL</th>
-                <th>Content</th>
-                <th>Time</th>
-            </tr>
-        </tbody>
-    </table>
+    <div id="content">Loading...</div>
+    <script src="react.min.js"></script>
+    <script src="react-dom.min.js"></script>
+    <script src="popup.js"></script>
   </body>
 </html>

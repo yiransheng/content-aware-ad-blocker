@@ -2,6 +2,7 @@
     var tabScripts = {};
     var tabUrls = {};
     var urlSummaries = {};
+    var urlWhitelist = {};
     var currentActiveTab = null;
 
     var filters = {};
@@ -29,17 +30,26 @@
             }
         });
     }
+    function mergeWhitelist(otherWhitelist) {
+        Object.keys(otherWhitelist).forEach(key => {
+            urlWhitelist[key] = true;
+        });
+    }
 
-    chrome.storage.sync.get(["urlSummaries"], (items) => {
-        console.log("Loaded data:", items);
+    chrome.storage.sync.get(["urlSummaries", "urlWhitelist"], (items) => {
         mergeSummaries(items.urlSummaries || {});
+        mergeWhitelist(items.urlWhitelist || {});
+        console.log("Loaded data:", items);
     });
 
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        console.log("Updated data:", changes);
         if (changes.urlSummaries) {
             mergeSummaries(changes.urlSummaries.newValue);
         }
+        if (changes.urlWhitelist) {
+            mergeWhitelist(changes.urlWhitelist.newValue);
+        }
+        console.log("Updated data:", changes);
     });
 
     var updateSummaries = debounce((tabId) => {
@@ -50,21 +60,26 @@
 
             var blocked = tabScripts[tabId] || {};
             var numBlocked = Object.keys(blocked).filter(
-                (item) => blocked[item].contentBlocked == 1 || blocked[item].urlBlocked == 1
+                (item) => blocked[item].blocked === 1
+            ).length;
+
+            var numWhitelisted = Object.keys(blocked).filter(
+                (item) => blocked[item].whitelisted === 1
             ).length;
 
             var numOursBlocked = Object.keys(blocked).filter(
-                (item) => (blocked[item].contentBlocked == 1 || blocked[item].urlBlocked == 1) && blocked[item].urlFiltered !== 1
+                (item) => (blocked[item].blocked === 1) && blocked[item].urlFiltered !== 1
             ).length;
 
             var numFilterBlocked = Object.keys(blocked).filter(
-                (item) => (blocked[item].contentBlocked !== 1 && blocked[item].urlBlocked !== 1) && blocked[item].urlFiltered == 1
+                (item) => (blocked[item].blocked !== 1) && blocked[item].urlFiltered == 1
             ).length;
 
             urlSummaries[tabUrls[tabId]] = {
                 totalBlocked: numBlocked,
                 oursBlocked: numOursBlocked,
                 filterBlocked: numFilterBlocked,
+                whitelisted: numWhitelisted,
             }
             chrome.storage.sync.set({'urlSummaries': urlSummaries});
 
@@ -197,38 +212,51 @@
 
         tabScripts[details.tabId] = tabScripts[details.tabId] || {};
 
-        var result = {};
+        var result = {
+            blocked: 0,
+            whitelisted: 0,
+        };
 
         result = shouldBlockUrlUsingFilters(details.url, result);
 
         result = shouldBlockUrl(details.url, result);
         if (result.urlBlocked === 1) {
             console.log("## URL BLOCKED", details.url, result.urlScore);
-            tabScripts[details.tabId][details.url] = result;
-            updateBadge(details.tabId);
-            return {cancel: true};
+            result.blocked = 1;
+        } else {
+            var request = new XMLHttpRequest();
+            request.open('GET', details.url, false);  // `false` makes the request synchronous
+            request.send(null);
+
+            if (request.status !== 200) {
+                // TODO(tom): What to do here?
+                return;
+            }
+
+            result = shouldBlockContents(details.url, request.responseText, result);
+            if (result.contentBlocked === 1) {
+                console.log("## CONTENT BLOCKED", details.url, result.contentScore);
+                result.blocked = 1;
+            } else {
+                console.log("Content passed", details.url, result.urlScore,
+                    result.contentScore)
+            }
         }
 
-        var request = new XMLHttpRequest();
-        request.open('GET', details.url, false);  // `false` makes the request synchronous
-        request.send(null);
-
-        if (request.status !== 200) {
-            // TODO(tom): What to do here?
-            return;
+        if (result.blocked === 1 && urlWhitelist[details.url] === true) {
+            console.log("## URL WHITELISTED", details.url);
+            result.whitelisted = 1;
+            result.blocked = 0;
         }
 
-        result = shouldBlockContents(details.url, request.responseText, result);
         tabScripts[details.tabId][details.url] = result;
+        updateBadge(details.tabId);
 
-        if (result.contentBlocked === 1) {
-            console.log("## CONTENT BLOCKED", details.url, result.contentScore);
-            updateBadge(details.tabId);
+        if (result.blocked === 1) {
             return {cancel: true};
         }
-
-        console.log("Content passed", details.url, result.urlScore, result.contentScore)
         return;
+
     }, {urls: ["http://*/*", "https://*/*"], types: ["script"]}, ["blocking"]);
 
     chrome.tabs.onActivated.addListener(function(details) {
@@ -248,17 +276,31 @@
     FILTER_NAMES.map(loadFilterList);
 
     chrome.runtime.onMessage.addListener(function (msg, sender, response) {
-        if ((msg.from === 'popup') && (msg.action === 'getScriptData')) {
-            var totalScriptsBlocked = 0;
-            Object.keys(urlSummaries).forEach(key => {
-                totalScriptsBlocked += urlSummaries[key].totalBlocked;
-            });
+        if (msg.from === 'popup') {
+            if (msg.action === 'getScriptData') {
+                var totalScriptsBlocked = 0;
+                Object.keys(urlSummaries).forEach(key => {
+                    totalScriptsBlocked += urlSummaries[key].totalBlocked;
+                });
+            }
+
+            if (msg.action === 'updateWhitelist') {
+                if (msg.add) {
+                    urlWhitelist[msg.url] = true;
+                    console.log("Added url to whitelist", msg.url);
+                } else {
+                    delete urlWhitelist[msg.url];
+                    console.log("Removed url from whitelist", msg.url);
+                }
+                chrome.storage.sync.set({'urlWhitelist': urlWhitelist});
+            }
 
             response({
                 tabData: tabScripts[currentActiveTab] || {},
                 globalData: {
                     totalScriptsBlocked: totalScriptsBlocked,
-                    urlSummaries: urlSummaries
+                    urlSummaries: urlSummaries,
+                    urlWhitelist: urlWhitelist,
                 }
             });
         }

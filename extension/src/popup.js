@@ -1,4 +1,5 @@
 const MAX_URL = 85;
+const e = React.createElement;
 
 function hash(str){
 	var hash = 0;
@@ -11,54 +12,47 @@ function hash(str){
 	return hash;
 }
 
-function renderTable(data) {
-    var allIds = {};
-    var existingIds = {};
-    Object.keys(data).forEach(url => allIds[hash(url)] = 1);
-
-    var table = document.getElementById("urlTable");
-    var childrenToDelete = [];
-    table.childNodes.forEach(child => {
-        if (!child.getAttribute) {
-            return;
-        }
-        var id = child.getAttribute("data-id");
-        if (id == "header") {
-            return;
-        }
-        if (!allIds[id]) {
-            console.log("Deleting id", id);
-            childrenToDelete.push(child);
-        } else {
-            existingIds[id] = 1;
-        }
+function updateWhitelist(checked, url) {
+    chrome.runtime.sendMessage({
+        from: "popup",
+        action: "updateWhitelist",
+        url: url,
+        add: checked,
+    }, function(data) {
+        ReactDOM.render(
+            e(PopupContents, data, null),
+            document.getElementById('content'));
     });
+}
 
-    childrenToDelete.forEach(child => table.removeChild(child));
-
+function renderTable(data, whitelist) {
     var urlFilterTimeTotal = 0;
     var urlScoreTimeTotal = 0;
     var contentScoreTimeTotal = 0;
     var timeTotal = 0;
 
-    Object.keys(data).forEach(url => {
+    var rows = [e('tr', {key: "header"}, [
+        e('th', {key: "URL1"}, "URL"),
+        e('th', {key: "Filter"}, "Filter"),
+        e('th', {key: "URL2"}, "URL"),
+        e('th', {key: "Content"}, "Content"),
+        e('th', {key: "Time"}, "Time"),
+        e('th', {key: "Unblock"}, "Unblock"),
+    ])];
+
+    rows = rows.concat(Object.keys(data).map(url => {
         var id = hash(url);
         var urlData = data[url];
 
         var totalTime = ((urlData.urlFilterTime || 0) +
             (urlData.urlScoreTime || 0) +
             (urlData.contentScoreTime || 0));
+
         urlFilterTimeTotal += (urlData.urlFilterTime || 0);
         urlScoreTimeTotal += (urlData.urlScoreTime || 0);
         contentScoreTimeTotal += (urlData.contentScoreTime || 0);
         timeTotal += totalTime;
 
-        if (existingIds[id]) {
-            console.log("Skipping id", id);
-            return;
-        }
-
-        console.log("Creating id", id);
         var displayUrl = url;
         if (url.length > MAX_URL) {
             displayUrl = url.slice(0, MAX_URL/2) + "..." + url.slice(url.length - MAX_URL/2);
@@ -66,76 +60,109 @@ function renderTable(data) {
         var urlScore = "" + Math.round(urlData.urlScore*100)/100;
         var contentScore = "" + Math.round(urlData.contentScore*100)/100;
 
-        var contents = [
-            ["<a href=\"" + url + "\" target=\"_blank\">" + displayUrl + "</a>", "url"],
-            (urlData.urlFiltered == 1) ? ["&#9447; " + urlData.urlFilteredBy, "bool maybe"] : ["&#10003;", "bool pass"],
-            (urlData.urlBlocked == 1) ? ["&#9447; " + urlScore, "bool fail"] : ["&#10003; " + urlScore, "bool pass"],
-            (urlData.urlBlocked == 1) ? ["-", "bool"] : (
-                (urlData.contentBlocked == 1) ? ["&#9447; " + contentScore, "bool fail"] : ["&#10003; " + contentScore, "bool pass"]),
-            [Math.round(totalTime) + " ms", "time"],
-        ];
+        return e('tr', {key: id}, [
+            e('td', {key: 1, className: "url"}, [
+                e('a', {href: url, target: "_blank"}, displayUrl),
+            ]),
+            (urlData.urlFiltered == 1) ?
+                e('td', {key: 2, className: "bool maybe",
+                  dangerouslySetInnerHTML: {__html:
+                      "&#9447; " + urlData.urlFilteredBy}}) :
+                e('td', {key: 2, className: "bool pass",
+                  dangerouslySetInnerHTML: {__html:
+                      "&#10003;"}}),
+            (urlData.urlBlocked == 1) ?
+                e('td', {key: 3,
+                    className: whitelist[url] ? "bool pass" : "bool fail",
+                    dangerouslySetInnerHTML: {__html: "&#9447; " + urlScore}}) :
+                e('td', {key: 3, className: "bool pass",
+                    dangerouslySetInnerHTML: {__html: "&#10003; " + urlScore}}),
+            (urlData.urlBlocked == 1) ?
+                e('td', {key: 4, className: "bool"}, "-") : (
+                  (urlData.contentBlocked == 1) ?
+                      e('td', {key: 4,
+                        className: whitelist[url] ? "bool pass" : "bool fail",
+                        dangerouslySetInnerHTML: {__html:
+                            "&#9447; " + contentScore}}) :
+                      e('td', {key: 4, className: "bool pass",
+                        dangerouslySetInnerHTML: {__html:
+                            "&#10003; " + contentScore}})
+                ),
+            e('td', {key: 5, className: "time"}, Math.round(totalTime) + " ms"),
+            (urlData.urlBlocked !== 1 && urlData.contentBlocked !== 1) ?
+                e('td', {key: 6}) :
+                e('td', {key: 6, className: "check"}, [
+                    e('input', {
+                        type: "checkbox",
+                        checked: whitelist[url],
+                        onChange: (e) => updateWhitelist(e.target.checked, url)
+                    })
+                ])
+        ]);
+    }));
 
-        var tr = document.createElement("tr");
-        tr.setAttribute("data-id", id);
+    rows.push(e('tr', {key: "__TIME__"}, [
+        e('td', {key: 1, className: "url"}, "Time totals"),
+        e('td', {key: 2, className: "time"},
+          Math.round(urlFilterTimeTotal) + " ms"),
+        e('td', {key: 3, className: "time"},
+          Math.round(urlScoreTimeTotal) + " ms"),
+        e('td', {key: 4, className: "time"},
+          Math.round(contentScoreTimeTotal) + " ms"),
+        e('td', {key: 5, className: "time"},
+          Math.round(timeTotal) + " ms"),
+    ]));
 
-        var tds = contents.map(info => {
-            var td = document.createElement("td");
-            td.innerHTML = info[0];
-            td.setAttribute("class", info[1]);
-            tr.appendChild(td);
-            return td;
-        });
-        table.appendChild(tr);
-    });
-
-    {
-        var tr = document.createElement("tr");
-        tr.setAttribute("data-id", "__TIME__");
-
-        var contents = [
-            ["Time totals", "url"],
-            [Math.round(urlFilterTimeTotal) + " ms", "time"],
-            [Math.round(urlScoreTimeTotal) + " ms", "time"],
-            [Math.round(contentScoreTimeTotal) + " ms", "time"],
-            [Math.round(timeTotal) + " ms", "time"],
-        ]
-
-        var tds = contents.map(info => {
-            var td = document.createElement("td");
-            td.innerHTML = info[0];
-            td.setAttribute("class", info[1]);
-            tr.appendChild(td);
-            return td;
-        });
-        table.appendChild(tr);
-    }
+    return rows;
 }
+
+function PopupContents(props) {
+    // Create a CSV
+    var csvRows = [
+        ["URL,Total blocked,Ours blocked,Filter blocked,Whitelisted"]
+    ];
+    Object.keys(props.globalData.urlSummaries).forEach(key => {
+        var row = props.globalData.urlSummaries[key];
+        csvRows.push([
+            key, row.totalBlocked, row.oursBlocked, row.filterBlocked,
+            row.whitelisted
+        ].join(","));
+    });
+    var file = new Blob([csvRows.join("\n")], {type: "application/csv"});
+    var url = URL.createObjectURL(file);
+
+    return e('div', null, [
+        e('p', null, 'This is an ad blocker which uses machine learning ' +
+            'to identify ad-serving scripts in your browser.'),
+        e('p', null, 'This is a capstone project for the UC Berkeley ' +
+            'Master of Information and Data Science program.'),
+        e('p', {className: "blocked"}, [
+            e('span', null, "Total scripts blocked: "),
+            e('span', null, "" + props.globalData.totalScriptsBlocked),
+            e('span', null, ". Download data "),
+            e('a', {href: url, download: "adBlockerData.csv"}, "here"),
+        ]),
+        e('h2', {style: {marginBottom: 0, marginTop: 30}},
+          "Scripts loaded on this page"),
+        e('table',
+          {className: "table", cellPadding: 0, cellSpacing: 0, width: "100%"},
+          [e('tbody', null,
+             renderTable(props.tabData, props.globalData.urlWhitelist))]),
+    ]);
+}
+
 function getData() {
     chrome.runtime.sendMessage({
         from: "popup",
         action: "getScriptData"
     }, function(data) {
-        renderTable(data.tabData);
-
-        var blockedScripts = document.getElementById('blockedScripts');
-        blockedScripts.innerHTML = "" + data.globalData.totalScriptsBlocked;
-
-        // Create a CSV
-        var csvRows = [
-            ["URL,Total blocked,Ours blocked,Filter blocked"]
-        ];
-        Object.keys(data.globalData.urlSummaries).forEach(key => {
-            var row = data.globalData.urlSummaries[key];
-            csvRows.push([key, row.totalBlocked, row.oursBlocked, row.filterBlocked].join(","));
-        });
-        var file = new Blob([csvRows.join("\n")], {type: "application/csv"});
-        var url = URL.createObjectURL(file);
-
-        var downloadLink = document.getElementById("downloadLink");
-        downloadLink.setAttribute("href", url);
+        ReactDOM.render(
+            e(PopupContents, data, null),
+            document.getElementById('content'));
     });
 }
 
 getData();
 window.setInterval(getData, 5000);
+
 console.log("Popup loaded!")
