@@ -134,9 +134,10 @@
 
         chrome.browserAction.setBadgeBackgroundColor({color: "#ba3500"});
         if (numBlocked > 0) {
-            chrome.browserAction.setBadgeText({text: "" + numBlocked});
+            chrome.browserAction.setBadgeText(
+                {text: "" + numBlocked, tabId: tabId});
         } else {
-            chrome.browserAction.setBadgeText({text: ""});
+            chrome.browserAction.setBadgeText({text: "", tabId: tabId});
         }
 
         updateSummaries(tabId);
