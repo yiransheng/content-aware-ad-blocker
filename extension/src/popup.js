@@ -119,13 +119,29 @@ function renderTable(data, whitelist) {
 function PopupContents(props) {
     // Create a CSV
     var csvRows = [
-        ["URL,Total blocked,Ours blocked,Filter blocked,Whitelisted"]
+        ["URL,Total blocked,Bad total,Bad URL blocked,Bad content blocked," +
+        "Bad URL filtered,Bad blocked,Good total,Good URL blocked," +
+        "Good content blocked,Good URL filtered,Good whitelisted," +
+        "Good blocked"]
     ];
     Object.keys(props.globalData.urlSummaries).forEach(key => {
         var row = props.globalData.urlSummaries[key];
+        var shouldBeBlocked = row.shouldBeBlocked || {};
+        var shouldNotBeBlocked = row.shouldNotBeBlocked || {};
         csvRows.push([
-            key, row.totalBlocked, row.oursBlocked, row.filterBlocked,
-            row.whitelisted
+            key,
+            row.totalBlocked,
+            shouldBeBlocked.total,
+            shouldBeBlocked.urlBlocked,
+            shouldBeBlocked.contentBlocked,
+            shouldBeBlocked.filtered,
+            shouldBeBlocked.blocked,
+            shouldNotBeBlocked.total,
+            shouldNotBeBlocked.urlBlocked,
+            shouldNotBeBlocked.contentBlocked,
+            shouldNotBeBlocked.filtered,
+            shouldNotBeBlocked.whitelisted,
+            shouldNotBeBlocked.blocked,
         ].join(","));
     });
     var file = new Blob([csvRows.join("\n")], {type: "application/csv"});

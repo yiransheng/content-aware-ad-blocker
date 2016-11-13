@@ -52,40 +52,79 @@
         console.log("Updated data:", changes);
     });
 
-    var updateSummaries = debounce((tabId) => {
+    function calcUpdateSummaries(tabId) {
         chrome.tabs.get(tabId, (tab) => {
             if (tab.url && tabUrls[tabId] !== tab.url) {
                 tabUrls[tabId] = tab.url;
             }
 
             var blocked = tabScripts[tabId] || {};
-            var numBlocked = Object.keys(blocked).filter(
-                (item) => blocked[item].blocked === 1
-            ).length;
-
-            var numWhitelisted = Object.keys(blocked).filter(
-                (item) => blocked[item].whitelisted === 1
-            ).length;
-
-            var numOursBlocked = Object.keys(blocked).filter(
-                (item) => (blocked[item].blocked === 1) && blocked[item].urlFiltered !== 1
-            ).length;
-
-            var numFilterBlocked = Object.keys(blocked).filter(
-                (item) => (blocked[item].blocked !== 1) && blocked[item].urlFiltered == 1
-            ).length;
-
-            urlSummaries[tabUrls[tabId]] = {
-                totalBlocked: numBlocked,
-                oursBlocked: numOursBlocked,
-                filterBlocked: numFilterBlocked,
-                whitelisted: numWhitelisted,
+            var summary = {
+                totalBlocked: 0,
+                shouldBeBlocked: {
+                    total: 0,
+                    urlBlocked: 0,
+                    contentBlocked: 0,
+                    blocked: 0,
+                    filtered: 0,
+                },
+                shouldNotBeBlocked: {
+                    total: 0,
+                    urlBlocked: 0,
+                    contentBlocked: 0,
+                    filtered: 0,
+                    whitelisted: 0,
+                    blocked: 0,
+                },
             }
+            Object.keys(blocked).forEach(item => {
+                // We should have blocked if either the url or content was
+                // flagged by the model or the filter suggests the url should
+                // have been blocked AND url was not in thewhitelist
+                if ((blocked[item].urlBlocked === 1 ||
+                     blocked[item].contentBlocked === 1 ||
+                     blocked[item].urlFiltered === 1) &&
+                     blocked[item].whitelist !== 1) {
+                    summary.shouldBeBlocked.total += 1;
+                    summary.shouldBeBlocked.urlBlocked += (
+                        blocked[item].urlBlocked || 0);
+                    summary.shouldBeBlocked.contentBlocked += (
+                        blocked[item].contentBlocked || 0);
+                    summary.shouldBeBlocked.filtered += (
+                        blocked[item].urlFiltered || 0);
+                    summary.shouldBeBlocked.blocked +=
+                        blocked[item].blocked;
+                } else {
+                    summary.shouldNotBeBlocked.total += 1;
+                    summary.shouldNotBeBlocked.urlBlocked += (
+                        blocked[item].urlBlocked || 0);
+                    summary.shouldNotBeBlocked.contentBlocked += (
+                        blocked[item].contentBlocked || 0);
+                    summary.shouldNotBeBlocked.filtered += (
+                        blocked[item].urlFiltered || 0);
+                    summary.shouldNotBeBlocked.whitelisted += (
+                        blocked[item].whitelisted || 0);
+                    summary.shouldNotBeBlocked.blocked +=
+                        blocked[item].blocked;
+                }
+                summary.totalBlocked += blocked[item].blocked;
+            });
+
+            urlSummaries[tabUrls[tabId]] = summary;
             chrome.storage.sync.set({'urlSummaries': urlSummaries});
 
             console.log("Updated URL summaries for", tabUrls[tabId], urlSummaries[tabUrls[tabId]]);
         });
-    }, 1000, false);
+    }
+
+    var _updateSummaries = {};
+    function updateSummaries(tabId) {
+        if (!_updateSummaries[tabId]) {
+            _updateSummaries[tabId] = debounce(
+                () => calcUpdateSummaries(tabId), 1000, false);
+        }
+        _updateSummaries[tabId]();
+    }
 
     function updateBadge(tabId) {
         var blocked = tabScripts[tabId] || {};
@@ -194,7 +233,6 @@
             sizeTokens.push(size);
         }
         var sizeScore = calcSVMScore(sizeTokens, combinedModel.size, 1);
-        console.log("Size", sizeTokens, sizeScore);
 
         // SVM score
         var svmScore = combinedModel.b + urlScore + scriptScore;
