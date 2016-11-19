@@ -301,13 +301,16 @@
 
         var urlTokens = url.toLowerCase().split("");
         var scoredUrl = scoreTokens(urlTokens, urlModel, 6, 0);
-        var urlScore = Math.round(calcSVMScore(urlTokens, urlModel, 6) * 100) / 100;
+        var urlScore = Math.round((urlModel.b + calcSVMScore(urlTokens, urlModel, 6)) * 100) / 100;
         var urlColor = (urlScore <= 0) ? CONTRIB_COLORS[0] : CONTRIB_COLORS[6];
 
         var originalContent = request.responseText.slice(0, 1024);
         var contentTokens = tokenizeContents(originalContent);
         var scoredContent = scoreTokens(contentTokens, combinedModel.script, 2, 4);
-        var contentScore = Math.round(calcSVMScore(contentTokens, combinedModel.script, 2) * 100) / 100;
+        var contentScore = Math.round((
+            combinedModel.b +
+            calcSVMScore(urlTokens, combinedModel.url, 6) +
+            calcSVMScore(contentTokens, combinedModel.script, 2)) * 100) / 100;
         var contentColor = (contentScore <= 0) ? CONTRIB_COLORS[0] : CONTRIB_COLORS[6];
 
         var html = "<html><body>" +
