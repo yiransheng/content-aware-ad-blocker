@@ -8,6 +8,12 @@
     var filters = {};
     const FILTER_NAMES = ["easylist", "privacy", "annoyance", "social"];
 
+    // Gradient from green -> gray -> red, since a positive number means the
+    // script is to be rejected
+    var CONTRIB_COLORS = [
+        "9cf4b9", "b3edc6", "cae7d3", "e1e1e1", "e7c9ca", "edb2b5", "f49ca0"
+    ];
+
     function debounce(func, wait, immediate) {
         var timeout;
         return function() {
@@ -244,6 +250,86 @@
         return prevInfo;
     }
 
+    function safe_tags(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') ;
+    }
+
+    function scoreTokens(tokens, model, max_ngram, padding) {
+        var contributions = Array(tokens.length).fill(0.0);
+
+        // Check all n-grams for n=1..max_ngram
+        for (var n = 1; n <= max_ngram; n++) {
+            for (var p = 0; p < tokens.length + 1 - n; p++) {
+                var subTokens = tokens.slice(p, p + n).join(" ");
+                var index = model.vocab[subTokens];
+                if (index !== undefined) {
+                    for (var ti = 0; ti < n; ti++) {
+                        contributions[p + ti] += (
+                            model.idf[index] * model.w[index]);
+                    }
+                }
+            }
+        }
+
+        // Normalize to range [-1,1]
+        var maxAbs = contributions.reduce((p, n) => Math.max(p, Math.abs(n)), 0);
+        contributions = contributions.map(n => n / maxAbs);
+
+        // Generate colored spans for each token colored by contribution
+        return tokens.map((token, idx) => {
+                var contribution = contributions[idx];
+                var colorIdx = Math.round(contribution * 3) + 3;
+                return "<span style=\"" +
+                    "padding-right: " + padding + "px;" +
+                    "background-color: #" + CONTRIB_COLORS[colorIdx] +
+                    "\">" + safe_tags(token) + "</span>";
+            }).join("");
+    }
+
+    function markupScript(url) {
+        var urlModel = getUrlModel();
+        var combinedModel = getCombinedModel();
+
+        var request = new XMLHttpRequest();
+        request.open('GET', url, false);  // `false` makes the request synchronous
+        request.send(null);
+
+        if (request.status !== 200) {
+            // TODO(tom): What to do here?
+            return 'ERROR: Unable to fetch URL ' + url;
+        }
+
+        var urlTokens = url.toLowerCase().split("");
+        var scoredUrl = scoreTokens(urlTokens, urlModel, 6, 0);
+        var urlScore = Math.round(calcSVMScore(urlTokens, urlModel, 6) * 100) / 100;
+        var urlColor = (urlScore <= 0) ? CONTRIB_COLORS[0] : CONTRIB_COLORS[6];
+
+        var originalContent = request.responseText.slice(0, 1024);
+        var contentTokens = tokenizeContents(originalContent);
+        var scoredContent = scoreTokens(contentTokens, combinedModel.script, 2, 4);
+        var contentScore = Math.round(calcSVMScore(contentTokens, combinedModel.script, 2) * 100) / 100;
+        var contentColor = (contentScore <= 0) ? CONTRIB_COLORS[0] : CONTRIB_COLORS[6];
+
+        var html = "<html><body>" +
+            "<div style=\"position: fixed; left: 10px; right: 50%; top: 0px; bottom: 10px; overflow-y: auto\">" +
+            "<h2>Original URL</h2>" +
+            "<code>" + url + "</code>" +
+            "<h2>Original content</h2>" +
+            "<code>" +
+            safe_tags(originalContent) +
+            "</code></div>" +
+            "<div style=\"position: fixed; left: 50%; right: 10px; top: 0px; bottom: 10px; overflow-y: auto\">" +
+            "<h2>Scored URL (<span style=\"background-color: #" + urlColor + "\">" + urlScore + "</span>)</h2>" +
+            "<code>" + scoredUrl + "</code>" +
+            "<h2>Scored content (<span style=\"background-color: #" + contentColor + "\">" + contentScore + "</span>)</h2>" +
+            "<code style=\"overflow-wrap: break-word\">" +
+            scoredContent +
+            "</code></div>" +
+        "</body></html>";
+
+        return html;
+    }
+
     chrome.webRequest.onBeforeRequest.addListener(function(details) {
         if (details.type !== "script" || details.method !== "GET") {
             return;
@@ -316,6 +402,11 @@
 
     chrome.runtime.onMessage.addListener(function (msg, sender, response) {
         if (msg.from === 'popup') {
+            if (msg.action === 'markupScript') {
+                response({
+                    markup: markupScript(msg.url)
+                });
+            }
             if (msg.action === 'getScriptData') {
                 var totalScriptsBlocked = 0;
                 Object.keys(urlSummaries).forEach(key => {
