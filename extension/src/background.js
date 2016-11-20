@@ -179,10 +179,11 @@
     }
 
     function tokenizeContents(contents) {
-        contents = contents
-            .replace(/(\/\*[^*]+\*\/)/, "")
-            .replace(/\/\/.+/, "")
+        contents = (contents
+            .replace(/(\/\*(.|\n|\r)+\*\/)/gm, "")
+            .replace(/^\/\/.+/m, "")
             .match(/[A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:]|[\+\*=]|\*.+\*\//g)
+            || [])
             .map((x) => (x.length === 1 && x >= "a" && x <= "z") ? "x" : x.toLowerCase());
         return contents;
     }
@@ -262,7 +263,10 @@
             for (var p = 0; p < tokens.length + 1 - n; p++) {
                 var subTokens = tokens.slice(p, p + n).join(" ");
                 var index = model.vocab[subTokens];
-                if (index !== undefined) {
+                // Check that index is defined and it's not a function (because
+                // this is Javascript and subTokens could be something like
+                // "constructor". Ugh.)
+                if (index !== undefined && typeof(index) === "number") {
                     for (var ti = 0; ti < n; ti++) {
                         contributions[p + ti] += (
                             model.idf[index] * model.w[index]);
