@@ -1,0 +1,42 @@
+---
+title: "Ad Blocker Accuracy"
+author: "Tom Yedwab"
+date: "11/12/2016"
+output: pdf_document
+---
+
+How accurate is the model underlying our ad blocker?
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+adBlockerData <- read.csv("~/Downloads/adBlockerData (16).csv")
+```
+
+```{r}
+adBlockerSums <- adBlockerData[-1] %>% colSums(na.rm = TRUE)
+
+# Precision: How many scripts marked bad were bad?
+adBlockerData$URL.precision = adBlockerData$Bad.URL.blocked / (adBlockerData$Bad.URL.blocked + adBlockerData$Good.URL.blocked)
+
+adBlockerData$blocked.precision = (adBlockerData$Bad.URL.blocked + adBlockerData$Bad.content.blocked) / (adBlockerData$Bad.URL.blocked + adBlockerData$Bad.content.blocked + adBlockerData$Good.URL.blocked + adBlockerData$Good.content.blocked)
+
+adBlockerData$filter.precision = (adBlockerData$Bad.URL.filtered) / (adBlockerData$Bad.URL.filtered + adBlockerData$Good.URL.filtered)
+
+overall.URL.precision = adBlockerSums[["Bad.URL.blocked"]] / (adBlockerSums[["Bad.URL.blocked"]] + adBlockerSums[["Good.URL.blocked"]])
+
+overall.blocked.precision = (adBlockerSums[["Bad.URL.blocked"]] + adBlockerSums[["Bad.content.blocked"]]) / (adBlockerSums[["Bad.URL.blocked"]] + adBlockerSums[["Bad.content.blocked"]] + adBlockerSums[["Good.URL.blocked"]] + adBlockerSums[["Good.content.blocked"]])
+
+overall.filter.precision = adBlockerSums[["Bad.URL.filtered"]] / (adBlockerSums[["Bad.URL.filtered"]] + adBlockerSums[["Good.URL.filtered"]])
+
+# Recall: How many bad scripts did we mark as bad?
+adBlockerData$URL.recall = adBlockerData$Bad.URL.blocked / adBlockerData$Bad.total
+adBlockerData$blocked.recall = adBlockerData$Bad.blocked / adBlockerData$Bad.total
+adBlockerData$filtered.recall = adBlockerData$Bad.URL.filtered / adBlockerData$Bad.total
+
+overall.URL.recall = adBlockerSums[["Bad.URL.blocked"]] / adBlockerSums[["Bad.total"]]
+overall.blocked.recall = adBlockerSums[["Bad.blocked"]] / adBlockerSums[["Bad.total"]]
+overall.filtered.recall = adBlockerSums[["Bad.URL.filtered"]] / adBlockerSums[["Bad.total"]]
+```

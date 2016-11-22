@@ -7,7 +7,7 @@ import string
 def tokenize_js(script):
     script = re.sub(r'(\/\*[^*]+\*\/)', "", script)
     script = re.sub(r'\/\/.+', "", script)
-    tokens = re.findall(r'([A-Z][a-z]+|[A-Z]+|[a-z]+|[\-\\\/_{}\"\',\(\)\.]|[\+\*]|/\*.+\*\/)', script)
+    tokens = re.findall(r'([A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:]|[\+\*=]|/\*.+\*\/)', script)
     return [
         t.lower() if (len(t) != 1 or t.lower() not in string.lowercase) else "x"
         for t in tokens
@@ -61,4 +61,23 @@ def tokenize_url(url):
 
 def parse_url(tbl):
     for item in tbl:
-        yield item["url"]
+        yield item["url"].lower()
+
+def ngramizer(tokenizer, max_n):
+    def private(str_in):
+        tokens = tokenizer(str_in)
+        return [
+            " ".join(tokens[i:i+n])
+            for n in xrange(1, max_n+1)
+            for i in xrange(0, len(tokens) + 1 - n)
+        ]
+    private.tokenizer = tokenizer
+    return private
+
+def truncated_parse_js(max_size):
+    def private(tbl):
+        for item in tbl:
+            with open("%s/scripts/%s.js" % (REPO_ROOT, item["sha"])) as f:
+                yield f.read().decode(errors='replace')[:max_size]    
+    private.max_size = max_size
+    return private
