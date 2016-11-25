@@ -83,7 +83,7 @@ function renderTable(data, whitelist) {
                 e('a', {onClick: () => viewScript(url)}, displayUrl),
             ]),
             (urlData.urlFiltered == 1) ?
-                e('td', {key: 2, className: "bool maybe",
+                e('td', {key: 2, className: "bool fail",
                   dangerouslySetInnerHTML: {__html:
                       "&#9447; " + urlData.urlFilteredBy}}) :
                 e('td', {key: 2, className: "bool pass",

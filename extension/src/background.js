@@ -6,7 +6,12 @@
     var currentActiveTab = null;
 
     var filters = {};
-    const FILTER_NAMES = ["easylist", "privacy", "annoyance", "social"];
+    const FILTER_URLS = {
+        "easylist": "https://easylist.to/easylist/easylist.txt",
+        "privacy": "https://easylist.to/easylist/easyprivacy.txt",
+        "annoyance": "https://easylist.to/easylist/fanboy-annoyance.txt",
+        "social": "https://easylist.to/easylist/fanboy-social.txt"
+    };
 
     // Gradient from green -> gray -> red, since a positive number means the
     // script is to be rejected
@@ -149,28 +154,52 @@
         updateSummaries(tabId);
     }
 
-    function loadFilterList(name) {
-        var request = new XMLHttpRequest();
-        request.open('GET', chrome.extension.getURL('/filters/' + name + ".txt"), false);  // `false` makes the request synchronous
-        request.send(null);
-
+    function parseFilter(name, filterData) {
         var parsedFilterData = {};
-        ABPFilterParser.parse(request.responseText, parsedFilterData);
+        ABPFilterParser.parse(filterData, parsedFilterData);
         filters[name] = parsedFilterData;
-        console.log("Loaded filter", name);
+        console.log("Loaded filter list", name);
     }
 
-    function shouldBlockUrlUsingFilters(url, prevInfo) {
+    function loadFilterLists() {
+        var filterNames = Object.keys(FILTER_URLS).map(name => "FILTER:" + name);
+        chrome.storage.local.get(filterNames, filterData => {
+            Object.keys(FILTER_URLS).forEach(name => {
+                // TODO(tom): Update filters periodically
+                if (filterData["FILTER:" + name]) {
+                    console.log("Found filter list in cache", name);
+                    parseFilter(name, filterData["FILTER:" + name]);
+                } else {
+                    console.log("Fetching filter list", name);
+                    var request = new XMLHttpRequest();
+                    request.onload = (response) => {
+                        var filterText = response.target.responseText
+                        var d = {};
+                        d["FILTER:" + name] = filterText;
+                        chrome.storage.local.set(d);
+                        parseFilter(name, filterText);
+                    }
+                    request.open('GET', FILTER_URLS[name]);
+                    request.send();
+                }
+            });
+        });
+
+    }
+
+    function shouldBlockUrlUsingFilters(domain, url, prevInfo) {
         var startTime = performance.now();
         prevInfo.urlFiltered = 0;
-        for (var i = 0; i < FILTER_NAMES.length; i++) {
-            if (ABPFilterParser.matches(filters[FILTER_NAMES[i]], url, {
-                domain: "",
+        var filterNames = Object.keys(filters);
+        for (var i = 0; i < filterNames.length; i++) {
+            var name = filterNames[i];
+            if (ABPFilterParser.matches(filters[name], url, {
+                domain: domain,
                 elementTypeMaskMap: ABPFilterParser.elementTypes.SCRIPT,
             })) {
-                console.log("!! Url", url, "filtered by", FILTER_NAMES[i]);
+                console.log("!! Url", url, "filtered by", name);
                 prevInfo.urlFiltered = 1;
-                prevInfo.urlFilteredBy = FILTER_NAMES[i];
+                prevInfo.urlFilteredBy = name;
                 break;
             }
         }
@@ -180,11 +209,10 @@
 
     function tokenizeContents(contents) {
         contents = (contents
-            .replace(/(\/\*(.|\n|\r)+\*\/)/gm, "")
-            .replace(/^\/\/.+/m, "")
-            .match(/[A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:]|[\+\*=]|\*.+\*\//g)
+            .replace(/(\/\*(.|\n|\r)+?\*\/)|([^:]\/\/.+?$)/gm, "")
+            .match(/[A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:!\?]|[\+\*=]|\*.+\*\//g)
             || [])
-            .map((x) => (x.length === 1 && x >= "a" && x <= "z") ? "x" : x.toLowerCase());
+            .map(x => x.toLowerCase());
         return contents;
     }
 
@@ -341,6 +369,9 @@
         if (details.type !== "script" || details.method !== "GET") {
             return;
         }
+        if (!tabUrls[details.tabId] || tabUrls[details.tabId].slice(0, 4) !== 'http') {
+            return;
+        }
 
         tabScripts[details.tabId] = tabScripts[details.tabId] || {};
 
@@ -349,7 +380,17 @@
             whitelisted: 0,
         };
 
-        result = shouldBlockUrlUsingFilters(details.url, result);
+        // Get the tab URL's domain
+        var link = document.createElement('a');
+        link.setAttribute('href', tabUrls[details.tabId]);
+        var domain = link.hostname;
+        console.log("DOMAIN", domain);
+
+        result = shouldBlockUrlUsingFilters(domain, details.url, result);
+        if (result.urlFiltered === 1) {
+            console.log("## URL FILTERED", details.url, details.urlFilteredBy);
+            result.blocked = 1;
+        }
 
         result = shouldBlockUrl(details.url, result);
         if (result.urlBlocked === 1) {
@@ -405,7 +446,7 @@
     })
 
     console.log("Background script loaded!");
-    FILTER_NAMES.map(loadFilterList);
+    loadFilterLists();
 
     chrome.runtime.onMessage.addListener(function (msg, sender, response) {
         if (msg.from === 'popup') {
