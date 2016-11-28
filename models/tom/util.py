@@ -4,14 +4,12 @@ import json
 import re
 import string
 
+regex = re.compile(r'(\/\*.+?\*\/)|([^:]\/\/.+?$)', re.S | re.M)
+
 def tokenize_js(script):
-    script = re.sub(r'(\/\*[^*]+\*\/)', "", script)
-    script = re.sub(r'\/\/.+', "", script)
-    tokens = re.findall(r'([A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:]|[\+\*=]|/\*.+\*\/)', script)
-    return [
-        t.lower() if (len(t) != 1 or t.lower() not in string.lowercase) else "x"
-        for t in tokens
-    ]
+    script = re.sub(regex, "", script)
+    tokens = re.findall(r'([A-Z][a-z]+|[A-Z]+|[a-z]+|[0-9]+|[\-\\\/_{}\"\',\(\)\.:!\?]|[\+\*=]|/\*.+\*\/)', script)
+    return [t.lower() for t in tokens]
 
 def parse_js(tbl):
     for item in tbl:
