@@ -254,6 +254,24 @@
         return prevInfo;
     }
 
+    function convolution(str, windowSize, stride) {
+        var len = str.length;
+        if (len < windowSize) {
+            return [str];
+        }
+        var outputs = [];
+        for(var i=0; i+windowSize<len; i += stride) {
+            outputs.push(str.slice(i, i+windowSize));
+        }
+        return outputs;
+    }
+
+    function average(numbers) {
+      return numbers.reduce(function (a, b) {
+        return a+b;
+      }, 0) / numbers.length;
+    }
+
     function shouldBlockContents(url, contents, prevInfo) {
         var startTime = performance.now();
         var combinedModel = getCombinedModel();
@@ -261,8 +279,14 @@
         var urlTokens = url.toLowerCase().split("");
         var urlScore = calcSVMScore(urlTokens, combinedModel.url, 6);
 
-        var scriptTokens = tokenizeContents(contents.slice(0, 1024));
-        var scriptScore = calcSVMScore(scriptTokens, combinedModel.script, 2);
+
+        // non-overlapping segments of 1024 chars long each, max 20 segments
+        var scriptSegments = convolution(contents, 1024, 1024).slice(0, 20);
+        var scriptTokens = scriptSegments.map(tokenizeContents);
+        var scriptScores = scriptTokens.map(function(tokens) {
+          return calcSVMScore(tokens, combinedModel.script, 2);
+        });
+        var scriptScore = average(scriptScores);
 
         var sizeTokens = [];
         for (var size = 1; size <= contents.length; size *= 2) {
@@ -336,7 +360,7 @@
         var urlScore = Math.round((urlModel.b + calcSVMScore(urlTokens, urlModel, 6)) * 100) / 100;
         var urlColor = (urlScore <= 0) ? CONTRIB_COLORS[0] : CONTRIB_COLORS[6];
 
-        var originalContent = request.responseText.slice(0, 1024);
+        var originalContent = request.responseText.slice(0, 4096);
         var contentTokens = tokenizeContents(originalContent);
         var scoredContent = scoreTokens(contentTokens, combinedModel.script, 2, 4);
         var contentScore = Math.round((
