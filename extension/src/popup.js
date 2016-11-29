@@ -35,11 +35,7 @@ function viewScript(url) {
         // Load javascript source into a file
         var file = new Blob([data.markup], {type: "text/html"});
 
-        // Create an anchor tag and click on it to open in a new tab
-        var el = document.createElement('a');
-        el.setAttribute("href", URL.createObjectURL(file));
-        el.setAttribute("target", "_blank");
-        el.click();
+        saveAs(file, url.replace(/\s+/g, '_') + '.html'); 
     });
 }
 
@@ -80,7 +76,7 @@ function renderTable(data, whitelist) {
 
         return e('tr', {key: id}, [
             e('td', {key: 1, className: "url"}, [
-                e('a', {onClick: () => viewScript(url)}, displayUrl),
+                e('a', {onClick: () => viewScript(url), onDoubleClick: ()=> window.open(url,'_blank')}, displayUrl),
             ]),
             (urlData.urlFiltered == 1) ?
                 e('td', {key: 2, className: "bool fail",
