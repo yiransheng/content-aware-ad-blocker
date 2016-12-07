@@ -9,10 +9,11 @@ How accurate is the model underlying our ad blocker?
 
 ```{r}
 library(dplyr)
+library(ggplot2)
 ```
 
 ```{r}
-adBlockerData <- read.csv("~/Downloads/adBlockerData (16).csv")
+adBlockerData <- read.csv("~/Downloads/adBlockerData.csv")
 ```
 
 ```{r}
@@ -33,10 +34,25 @@ overall.filter.precision = adBlockerSums[["Bad.URL.filtered"]] / (adBlockerSums[
 
 # Recall: How many bad scripts did we mark as bad?
 adBlockerData$URL.recall = adBlockerData$Bad.URL.blocked / adBlockerData$Bad.total
-adBlockerData$blocked.recall = adBlockerData$Bad.blocked / adBlockerData$Bad.total
+adBlockerData$blocked.recall = (adBlockerData$Bad.URL.blocked + adBlockerData$Bad.content.blocked) / adBlockerData$Bad.total
 adBlockerData$filtered.recall = adBlockerData$Bad.URL.filtered / adBlockerData$Bad.total
 
 overall.URL.recall = adBlockerSums[["Bad.URL.blocked"]] / adBlockerSums[["Bad.total"]]
-overall.blocked.recall = adBlockerSums[["Bad.blocked"]] / adBlockerSums[["Bad.total"]]
-overall.filtered.recall = adBlockerSums[["Bad.URL.filtered"]] / adBlockerSums[["Bad.total"]]
+overall.blocked.recall = (adBlockerSums[["Bad.URL.blocked"]] + adBlockerSums[["Bad.content.blocked"]]) / adBlockerSums[["Bad.total"]]
+overall.filter.recall = adBlockerSums[["Bad.URL.filtered"]] / adBlockerSums[["Bad.total"]]
+
+df = data.frame(
+  model=c("URL", "URL", "URL + Content", "URL + Content", "Filter", "Filter"),
+  metric=c("Precision", "Recall", "Precision", "Recall", "Precision", "Recall"),
+  values=c(overall.URL.precision, overall.URL.recall,
+           overall.blocked.precision, overall.blocked.recall,
+           overall.filter.precision, overall.filter.recall))
+```
+
+```{r}
+ggplot(df, aes(x=metric, y=values, fill=model)) +
+  scale_fill_brewer(palette="Set1", direction=1) +
+  geom_bar(stat="identity", position="dodge") +
+  coord_flip() +
+  labs(title="Precision/recall of old vs. new classifiers", x="", y="")
 ```
