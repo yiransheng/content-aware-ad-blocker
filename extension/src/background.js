@@ -111,7 +111,7 @@
                 if ((blocked[item].urlBlocked === 1 ||
                      blocked[item].contentBlocked === 1 ||
                      blocked[item].urlFiltered === 1) &&
-                     blocked[item].whitelist !== 1) {
+                     blocked[item].whitelisted !== 1) {
                     summary.shouldBeBlocked.total += 1;
                     summary.shouldBeBlocked.urlBlocked += (
                         blocked[item].urlBlocked || 0);

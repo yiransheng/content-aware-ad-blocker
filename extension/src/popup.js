@@ -121,7 +121,7 @@ function renderTable(data, whitelist) {
                             "&#10003; " + contentScore}})
                 ),
             e('td', {key: 5, className: "time"}, Math.round(totalTime) + " ms"),
-            (urlData.urlBlocked !== 1 && urlData.contentBlocked !== 1) ?
+            (urlData.blocked !== 1 && !whitelist[url]) ?
                 e('td', {key: 6}) :
                 e('td', {key: 6, className: "check"}, [
                     e('input', {
