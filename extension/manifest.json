@@ -2,10 +2,10 @@
   "manifest_version": 2,
 
   "name": "Content-aware Ad Blocker",
-  "description": "MIDS Capstone Project",
+  "description": "Experimental new ad blocker using machine learning to identify unwanted ads on pages and remove them. Use at your own risk!",
   "version": "0.1",
 
-  "icons": { "48": "icons/exticon.png", "96": "icons/exticon96.png" },
+  "icons": { "48": "icons/exticon.png", "96": "icons/exticon96.png", "128": "icons/exticon128.png" },
 
   "browser_action": {
     "default_icon": "icons/exticon.png",

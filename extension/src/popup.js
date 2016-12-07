@@ -12,11 +12,25 @@ function hash(str){
 	return hash;
 }
 
-function updateWhitelist(checked, url) {
+function updateUrlWhitelist(checked, url) {
     chrome.runtime.sendMessage({
         from: "popup",
-        action: "updateWhitelist",
+        action: "updateUrlWhitelist",
         url: url,
+        add: checked,
+    }, function(data) {
+        ReactDOM.render(
+            e(PopupContents, data, null),
+            document.getElementById('content'));
+    });
+}
+
+function updateDomainWhitelist(checked, domain) {
+    console.log("Send updateDomainWhitelist");
+    chrome.runtime.sendMessage({
+        from: "popup",
+        action: "updateDomainWhitelist",
+        domain: domain,
         add: checked,
     }, function(data) {
         ReactDOM.render(
@@ -113,7 +127,7 @@ function renderTable(data, whitelist) {
                     e('input', {
                         type: "checkbox",
                         checked: whitelist[url],
-                        onChange: (e) => updateWhitelist(e.target.checked, url)
+                        onChange: (e) => updateUrlWhitelist(e.target.checked, url)
                     })
                 ])
         ]);
@@ -129,6 +143,7 @@ function renderTable(data, whitelist) {
           Math.round(contentScoreTimeTotal) + " ms"),
         e('td', {key: 5, className: "time"},
           Math.round(timeTotal) + " ms"),
+        e('td', null),
     ]));
 
     return rows;
@@ -171,25 +186,69 @@ function downloadCSV(globalData) {
     el.click();
 }
 
+function onOffSwitch(props) {
+    return e('div', {className: "onoffswitch"}, [
+        e('input', {
+            type: "checkbox", className: "onoffswitch-checkbox", id: "onoff",
+            checked: !props.domainWhitelisted,
+            onChange: (e) => updateDomainWhitelist(!e.target.checked, props.domain)
+        }),
+        e('label', {className: "onoffswitch-label", htmlFor: "onoff"}, [
+            e('span', {className: "onoffswitch-inner"}),
+            e('span', {className: "onoffswitch-switch"}),
+        ])
+    ]);
+}
+
 function PopupContents(props) {
+    var blockedDigits = ("" + props.globalData.totalScriptsBlocked).split("");
     return e('div', null, [
-        e('p', null, 'This is an ad blocker which uses machine learning ' +
-            'to identify ad-serving scripts in your browser.'),
-        e('p', null, 'This is a capstone project for the UC Berkeley ' +
-            'Master of Information and Data Science program.'),
-        e('p', {className: "blocked"}, [
-            e('span', null, "Total scripts blocked: "),
-            e('span', null, "" + props.globalData.totalScriptsBlocked),
-            e('span', null, ". Download data "),
-            //e('a', {href: url, download: "adBlockerData.csv"}, "here"),
-            e('a', {onClick: () => downloadCSV(props.globalData)}, "here"),
+        e('div', {className: "section-header"}, [
+            e('h1', null, 'Content-Aware Ad Blocker'),
+            e('p', null, 'Ad blocker which uses machine learning ' +
+                'to identify ad-serving scripts in your browser.'),
+            e('p', null, 'This is a capstone project for the UC Berkeley ' +
+                'Master of Information and Data Science program.'),
+            e('div', {className: "button-wrapper"}, [
+                e('a', {href: "https://samuelhkahn.github.io/capstone_page/",
+                        target: "_blank", className: "button"},
+                  'Visit the website'),
+            ]),
         ]),
-        e('h2', {style: {marginBottom: 0, marginTop: 30}},
-          "Scripts loaded on this page"),
-        e('table',
-          {className: "table", cellPadding: 0, cellSpacing: 0, width: "100%"},
-          [e('tbody', null,
-             renderTable(props.tabData, props.globalData.urlWhitelist))]),
+        e('div', {className: "section-summary"}, [
+            e('p', {className: "blocked"}, [
+                e('span', null, "Domain: "),
+                e('span', {className: "float"}, [
+                    props.domain || "",
+                ]),
+            ]),
+            e('p', {className: "blocked"}, [
+                e('span', null, "Ad-blocking on this domain is:"),
+                e('span', {className: "float"}, [
+                    onOffSwitch(props)
+                ]),
+            ]),
+            e('p', {className: "blocked"}, [
+                e('span', null, "Total scripts blocked: "),
+                e('span', {className: "float"}, [
+                    blockedDigits.map(digit => e('div', {className: 'digit'}, [digit])),
+                ]),
+            ]),
+            e('p', {className: "blocked"}, [
+                e('span', null, "Download detailed summary:"),
+                e('span', {className: "float"}, [
+                    e('a', {onClick: () => downloadCSV(props.globalData), className: "dl"},
+                        [e('img', {src: "dl-icon.png"})]),
+                ]),
+            ]),
+        ]),
+        e('div', {className: "section-table"}, [
+            e('h2', null, "Blocked item details"),
+            e('table',
+              {className: "table", cellPadding: 0, cellSpacing: 0, width: "100%"},
+              [e('tbody', null,
+                 renderTable(props.tabData, props.globalData.urlWhitelist))]),
+        ])
     ]);
 }
 
@@ -198,6 +257,7 @@ function getData() {
         from: "popup",
         action: "getScriptData"
     }, function(data) {
+        console.log(data);
         ReactDOM.render(
             e(PopupContents, data, null),
             document.getElementById('content'));

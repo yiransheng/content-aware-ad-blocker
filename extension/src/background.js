@@ -3,6 +3,7 @@
     var tabUrls = {};
     var urlSummaries = {};
     var urlWhitelist = {};
+    var domainWhitelist = {};
     var currentActiveTab = null;
 
     var filters = {};
@@ -34,6 +35,12 @@
         };
     };
 
+    function getUrlDomain(url) {
+        var link = document.createElement('a');
+        link.setAttribute('href', url);
+        return link.hostname;
+    }
+
     function mergeSummaries(otherSummaries) {
         Object.keys(otherSummaries).forEach(key => {
             if (!urlSummaries[key]) {
@@ -41,15 +48,21 @@
             }
         });
     }
-    function mergeWhitelist(otherWhitelist) {
+    function mergeUrlWhitelist(otherWhitelist) {
         Object.keys(otherWhitelist).forEach(key => {
             urlWhitelist[key] = true;
         });
     }
+    function mergeDomainWhitelist(otherWhitelist) {
+        Object.keys(otherWhitelist).forEach(key => {
+            domainWhitelist[key] = true;
+        });
+    }
 
-    chrome.storage.sync.get(["urlSummaries", "urlWhitelist"], (items) => {
+    chrome.storage.sync.get(["urlSummaries", "urlWhitelist", "domainWhitelist"], (items) => {
         mergeSummaries(items.urlSummaries || {});
-        mergeWhitelist(items.urlWhitelist || {});
+        mergeUrlWhitelist(items.urlWhitelist || {});
+        mergeDomainWhitelist(items.domainWhitelist || {});
         console.log("Loaded data:", items);
     });
 
@@ -58,7 +71,10 @@
             mergeSummaries(changes.urlSummaries.newValue);
         }
         if (changes.urlWhitelist) {
-            mergeWhitelist(changes.urlWhitelist.newValue);
+            mergeUrlWhitelist(changes.urlWhitelist.newValue);
+        }
+        if (changes.domainWhitelist) {
+            mergeDomainWhitelist(changes.domainWhitelist.newValue);
         }
         console.log("Updated data:", changes);
     });
@@ -373,18 +389,21 @@
             return;
         }
 
+        // Get the tab URL's domain
+        var domain = getUrlDomain(tabUrls[details.tabId]);
+        if (domainWhitelist[domain] === true) {
+            console.log("Blocking disabled for domain", domain);
+            tabScripts[details.tabId] = {};
+            updateBadge(details.tabId);
+            return;
+        }
+
         tabScripts[details.tabId] = tabScripts[details.tabId] || {};
 
         var result = {
             blocked: 0,
             whitelisted: 0,
         };
-
-        // Get the tab URL's domain
-        var link = document.createElement('a');
-        link.setAttribute('href', tabUrls[details.tabId]);
-        var domain = link.hostname;
-        console.log("DOMAIN", domain);
 
         result = shouldBlockUrlUsingFilters(domain, details.url, result);
         if (result.urlFiltered === 1) {
@@ -455,14 +474,13 @@
                     markup: markupScript(msg.url)
                 });
             }
-            if (msg.action === 'getScriptData') {
-                var totalScriptsBlocked = 0;
-                Object.keys(urlSummaries).forEach(key => {
-                    totalScriptsBlocked += urlSummaries[key].totalBlocked;
-                });
-            }
 
-            if (msg.action === 'updateWhitelist') {
+            var totalScriptsBlocked = 0;
+            Object.keys(urlSummaries).forEach(key => {
+                totalScriptsBlocked += urlSummaries[key].totalBlocked;
+            });
+
+            if (msg.action === 'updateUrlWhitelist') {
                 if (msg.add) {
                     urlWhitelist[msg.url] = true;
                     console.log("Added url to whitelist", msg.url);
@@ -471,9 +489,31 @@
                     console.log("Removed url from whitelist", msg.url);
                 }
                 chrome.storage.sync.set({'urlWhitelist': urlWhitelist});
+
+                // Reload the tab!
+                chrome.tabs.reload(currentActiveTab);
             }
 
+            if (msg.action === 'updateDomainWhitelist') {
+                if (msg.add) {
+                    domainWhitelist[msg.domain] = true;
+                    console.log("Added domain to whitelist", msg.domain);
+                } else {
+                    delete domainWhitelist[msg.domain];
+                    console.log("Removed domain from whitelist", msg.domain);
+                }
+                chrome.storage.sync.set({'domainWhitelist': domainWhitelist});
+
+                // Reload the tab!
+                chrome.tabs.reload(currentActiveTab);
+            }
+
+            var url = tabUrls[currentActiveTab];
+            var domain = getUrlDomain(url);
+
             response({
+                domain: domain,
+                domainWhitelisted: domainWhitelist[domain] === true,
                 tabData: tabScripts[currentActiveTab] || {},
                 globalData: {
                     totalScriptsBlocked: totalScriptsBlocked,
