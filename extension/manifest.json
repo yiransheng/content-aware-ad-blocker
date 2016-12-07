@@ -3,7 +3,7 @@
 
   "name": "Content-aware Ad Blocker",
   "description": "Experimental new ad blocker using machine learning to identify unwanted ads on pages and remove them. Use at your own risk!",
-  "version": "0.1",
+  "version": "0.2",
 
   "icons": { "48": "icons/exticon.png", "96": "icons/exticon96.png", "128": "icons/exticon128.png" },
 
